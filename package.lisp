@@ -145,31 +145,31 @@
   (version (make-sf2-ifil-rec) :type sf2-ifil-rec))
 
 (defbinstruct (sf2-isng (:include (sf2-chunk #.(coerce "isng" 'simple-base-string)))) ()
-  (text (make-array 0 :element-type '(unsigned-byte 8)) :type (simple-array (unsigned-byte 8) (size))))
+  (text #.(coerce "" 'simple-base-string) :type (simple-base-string size)))
 
 (defbinstruct (sf2-inam (:include (sf2-chunk #.(coerce "INAM" 'simple-base-string)))) ()
-  (text (make-array 0 :element-type '(unsigned-byte 8)) :type (simple-array (unsigned-byte 8) (size))))
+  (text #.(coerce "" 'simple-base-string) :type (simple-base-string size)))
 
 (defbinstruct (sf2-irom (:include (sf2-chunk #.(coerce "irom" 'simple-base-string)))) ()
-  (text (make-array 0 :element-type '(unsigned-byte 8)) :type (simple-array (unsigned-byte 8) (size))))
+  (text #.(coerce "" 'simple-base-string) :type (simple-base-string size)))
 
 (defbinstruct (sf2-icrd (:include (sf2-chunk #.(coerce "ICRD" 'simple-base-string)))) ()
-  (text (make-array 0 :element-type '(unsigned-byte 8)) :type (simple-array (unsigned-byte 8) (size))))
+  (text #.(coerce "" 'simple-base-string) :type (simple-base-string size)))
 
 (defbinstruct (sf2-ieng (:include (sf2-chunk #.(coerce "IENG" 'simple-base-string)))) ()
-  (text (make-array 0 :element-type '(unsigned-byte 8)) :type (simple-array (unsigned-byte 8) (size))))
+  (text #.(coerce "" 'simple-base-string) :type (simple-base-string size)))
 
 (defbinstruct (sf2-iprd (:include (sf2-chunk #.(coerce "IPRD" 'simple-base-string)))) ()
-  (text (make-array 0 :element-type '(unsigned-byte 8)) :type (simple-array (unsigned-byte 8) (size))))
+  (text #.(coerce "" 'simple-base-string) :type (simple-base-string size)))
 
 (defbinstruct (sf2-icop (:include (sf2-chunk #.(coerce "ICOP" 'simple-base-string)))) ()
-  (text (make-array 0 :element-type '(unsigned-byte 8)) :type (simple-array (unsigned-byte 8) (size))))
+  (text #.(coerce "" 'simple-base-string) :type (simple-base-string size)))
 
 (defbinstruct (sf2-icmt (:include (sf2-chunk #.(coerce "ICMT" 'simple-base-string)))) ()
-  (text (make-array 0 :element-type '(unsigned-byte 8)) :type (simple-array (unsigned-byte 8) (size))))
+  (text #.(coerce "" 'simple-base-string) :type (simple-base-string size)))
 
 (defbinstruct (sf2-isft (:include (sf2-chunk #.(coerce "ISFT" 'simple-base-string)))) ()
-  (text (make-array 0 :element-type '(unsigned-byte 8)) :type (simple-array (unsigned-byte 8) (size))))
+  (text #.(coerce "" 'simple-base-string) :type (simple-base-string size)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; sdta-list sub-chunk ;;
@@ -184,7 +184,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defbinstruct sf2-phdr-rec ()
-  (name (make-array 20 :element-type '(unsigned-byte 8) :initial-element 0) :type (simple-array (unsigned-byte 8) (20)))
+  (name (make-array 20 :element-type 'base-char :initial-element #\Nul) :type (simple-base-string 20))
   (preset 0 :type (unsigned-byte 16))
   (bank 0 :type (unsigned-byte 16))
   (preset-bag-ndx 0 :type (unsigned-byte 16))
@@ -208,7 +208,7 @@
   (amount (make-sf2-gen-amount) :type sf2-gen-amount))
 
 (defbinstruct sf2-inst-rec ()
-  (name (make-array 20 :element-type '(unsigned-byte 8) :initial-element 0) :type (simple-array (unsigned-byte 8) (20)))
+  (name (make-array 20 :element-type 'base-char :initial-element #\Nul) :type (simple-base-string 20))
   (bag-ndx 0 :type (unsigned-byte 16)))
 
 (defbinstruct sf2-ibag-rec ()
@@ -227,7 +227,7 @@
   (amount (make-sf2-gen-amount) :type sf2-gen-amount))
 
 (defbinstruct sf2-shdr-rec ()
-  (name (make-array 20 :element-type '(unsigned-byte 8) :initial-element 0) :type (simple-array (unsigned-byte 8) (20)))
+  (name (make-array 20 :element-type 'base-char :initial-element #\Nul) :type (simple-base-string 20))
   (start 0 :type (unsigned-byte 32))
   (end 0 :type (unsigned-byte 32))
   (start-loop 0 :type (unsigned-byte 32))
