@@ -144,32 +144,41 @@
 (defbinstruct (sf2-iver (:include (sf2-chunk #.(coerce "iver" 'simple-base-string)))) ()
   (version (make-sf2-ifil-rec) :type sf2-ifil-rec))
 
+(defmacro extract-values (&key values &allow-other-keys)
+  values)
+
+(defbinstruct (sf2-simple-string (:type (simple-array character (*))) (:conc-name nil) (:constructor extract-values)) (bytes)
+  (start 0 :type position)
+  (values #.(coerce "" 'simple-base-string) :type simple-string)
+  (end 0 :type position)
+  (nil (make-array #1=(- bytes (- end start)) :element-type '(unsigned-byte 8)) :type (simple-array (unsigned-byte 8) (#1#))))
+
 (defbinstruct (sf2-isng (:include (sf2-chunk #.(coerce "isng" 'simple-base-string)))) ()
-  (text #.(coerce "" 'simple-base-string) :type (simple-base-string size)))
+  (text "" :type (sf2-simple-string size)))
 
 (defbinstruct (sf2-inam (:include (sf2-chunk #.(coerce "INAM" 'simple-base-string)))) ()
-  (text #.(coerce "" 'simple-base-string) :type (simple-base-string size)))
+  (text "" :type (sf2-simple-string size)))
 
 (defbinstruct (sf2-irom (:include (sf2-chunk #.(coerce "irom" 'simple-base-string)))) ()
-  (text #.(coerce "" 'simple-base-string) :type (simple-base-string size)))
+  (text "" :type (sf2-simple-string size)))
 
 (defbinstruct (sf2-icrd (:include (sf2-chunk #.(coerce "ICRD" 'simple-base-string)))) ()
-  (text #.(coerce "" 'simple-base-string) :type (simple-base-string size)))
+  (text "" :type (sf2-simple-string size)))
 
 (defbinstruct (sf2-ieng (:include (sf2-chunk #.(coerce "IENG" 'simple-base-string)))) ()
-  (text #.(coerce "" 'simple-base-string) :type (simple-base-string size)))
+  (text "" :type (sf2-simple-string size)))
 
 (defbinstruct (sf2-iprd (:include (sf2-chunk #.(coerce "IPRD" 'simple-base-string)))) ()
-  (text #.(coerce "" 'simple-base-string) :type (simple-base-string size)))
+  (text "" :type (sf2-simple-string size)))
 
 (defbinstruct (sf2-icop (:include (sf2-chunk #.(coerce "ICOP" 'simple-base-string)))) ()
-  (text #.(coerce "" 'simple-base-string) :type (simple-base-string size)))
+  (text "" :type (sf2-simple-string size)))
 
 (defbinstruct (sf2-icmt (:include (sf2-chunk #.(coerce "ICMT" 'simple-base-string)))) ()
-  (text #.(coerce "" 'simple-base-string) :type (simple-base-string size)))
+  (text "" :type (sf2-simple-string size)))
 
 (defbinstruct (sf2-isft (:include (sf2-chunk #.(coerce "ISFT" 'simple-base-string)))) ()
-  (text #.(coerce "" 'simple-base-string) :type (simple-base-string size)))
+  (text "" :type (sf2-simple-string size)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; sdta-list sub-chunk ;;
