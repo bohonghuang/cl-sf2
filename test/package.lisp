@@ -7,9 +7,6 @@
    #:sf2-info-list-form #:sf2-info-list-chunks
    #:sf2-sdta-list-form #:sf2-sdta-list-chunks
    #:sf2-pdta-list-form #:sf2-pdta-list-chunks
-   #:sf2-info-subchunk-chunk
-   #:sf2-sdta-subchunk-chunk
-   #:sf2-pdta-subchunk-chunk
    #:sf2-ifil-version
    #:sf2-ifil-rec-major #:sf2-ifil-rec-minor
    #:sf2-phdr-records #:sf2-shdr-records
@@ -41,7 +38,7 @@
             "INFO list should have sub-chunks")
       ;; ifil is always the first INFO sub-chunk
       (let* ((sub (aref (sf2-info-list-chunks info) 0))
-             (ifil (sf2-info-subchunk-chunk sub)))
+             (ifil sub))
         (true (string= "SF2-IFIL" (string (type-of ifil))) "first INFO chunk should be ifil")
         (let ((ver (sf2-ifil-version ifil)))
           (is = 2 (sf2-ifil-rec-major ver))
@@ -58,13 +55,13 @@
           "pdta list should have 9 hydra chunks")
       ;; Verify chunk types in order
       (let ((type-names (loop for sub across (sf2-pdta-list-chunks pdta)
-                              collect (string (type-of (sf2-pdta-subchunk-chunk sub))))))
+                              collect (string (type-of sub)))))
         (is equal
             '("SF2-PHDR" "SF2-PBAG" "SF2-PMOD" "SF2-PGEN" "SF2-INST"
               "SF2-IBAG" "SF2-IMOD" "SF2-IGEN" "SF2-SHDR")
             type-names))
       ;; phdr array length >= 2
-      (let ((phdr (sf2-pdta-subchunk-chunk (aref (sf2-pdta-list-chunks pdta) 0))))
+      (let ((phdr (aref (sf2-pdta-list-chunks pdta) 0)))
         (true (>= (length (sf2-phdr-records phdr)) 2)
               "phdr should have at least 2 records")
         ;; First preset name is non-empty (simple-base-string, null-truncated by reader)
@@ -72,7 +69,7 @@
           (true (plusp (length name))
                 "first preset name should be non-empty")))
       ;; shdr array length >= 2
-      (let ((shdr (sf2-pdta-subchunk-chunk (aref (sf2-pdta-list-chunks pdta) 8))))
+      (let ((shdr (aref (sf2-pdta-list-chunks pdta) 8)))
         (true (>= (length (sf2-shdr-records shdr)) 2)
               "shdr should have at least 2 records")))))
 
@@ -102,12 +99,12 @@
           (length (sf2-pdta-list-chunks (sf2-riff-pdta sf2-2)))
           "pdta chunk count should match after roundtrip")
       ;; phdr record count matches
-      (let ((phdr-1 (sf2-pdta-subchunk-chunk (aref (sf2-pdta-list-chunks (sf2-riff-pdta sf2)) 0)))
-            (phdr-2 (sf2-pdta-subchunk-chunk (aref (sf2-pdta-list-chunks (sf2-riff-pdta sf2-2)) 0))))
+      (let ((phdr-1 (aref (sf2-pdta-list-chunks (sf2-riff-pdta sf2)) 0))
+            (phdr-2 (aref (sf2-pdta-list-chunks (sf2-riff-pdta sf2-2)) 0)))
         (is = (length (sf2-phdr-records phdr-1)) (length (sf2-phdr-records phdr-2))
             "phdr record count should match after roundtrip"))
       ;; shdr record count matches
-      (let ((shdr-1 (sf2-pdta-subchunk-chunk (aref (sf2-pdta-list-chunks (sf2-riff-pdta sf2)) 8)))
-            (shdr-2 (sf2-pdta-subchunk-chunk (aref (sf2-pdta-list-chunks (sf2-riff-pdta sf2-2)) 8))))
+      (let ((shdr-1 (aref (sf2-pdta-list-chunks (sf2-riff-pdta sf2)) 8))
+            (shdr-2 (aref (sf2-pdta-list-chunks (sf2-riff-pdta sf2-2)) 8)))
         (is = (length (sf2-shdr-records shdr-1)) (length (sf2-shdr-records shdr-2))
             "shdr record count should match after roundtrip")))))
