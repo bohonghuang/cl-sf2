@@ -184,9 +184,28 @@
 ;; sdta-list sub-chunk ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defbinstruct (s16vec (:type (simple-array (signed-byte 16) (*))) (:conc-name nil) (:constructor progn)) (length)
+  (values (make-array 0 :element-type '(signed-byte 16)) :type (simple-array (signed-byte 16) (length))))
+
+(defbinio (s16vec length) (simple-array (unsigned-byte 8) (*)))
+
+(declaim (inline u8vec-s16vec))
+(defun u8vec-s16vec (u8vec)
+  (declare (dynamic-extent u8vec))
+  (read-s16vec u8vec (floor (length u8vec) 2)))
+
+(declaim (inline s16vec-u8vec))
+(defun s16vec-u8vec (s16vec)
+  (let ((u8vec (make-array (* (length s16vec) 2) :element-type '(unsigned-byte 8))))
+    (write-s16vec u8vec s16vec (length s16vec))))
+
 (defbinstruct (sf2-smpl (:include (sf2-chunk #.(coerce "smpl" 'simple-base-string)))) ()
   (data (make-array 0 :element-type '(signed-byte 16))
-        :type (simple-array (signed-byte 16) ((floor size 2)))))
+        :type (map (simple-array (unsigned-byte 8) (size))
+                   (the (function ((simple-array (unsigned-byte 8) (*)))
+                                  (simple-array (signed-byte 16) (*)))
+                        #'u8vec-s16vec)
+                   #'s16vec-u8vec)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; pdta-list record structs ;;
