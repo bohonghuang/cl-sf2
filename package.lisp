@@ -148,10 +148,10 @@
   values)
 
 (defbinstruct (sf2-simple-string (:type (simple-array character (*))) (:conc-name nil) (:constructor extract-values)) (bytes)
-  (start 0 :type position)
+  (%start 0 :type position)
   (values #.(coerce "" 'simple-base-string) :type simple-string)
-  (end 0 :type position)
-  (nil (make-array #1=(- bytes (- end start)) :element-type '(unsigned-byte 8)) :type (simple-array (unsigned-byte 8) (#1#))))
+  (%end 0 :type position)
+  (nil (make-array #1=(- bytes (- %end %start)) :element-type '(unsigned-byte 8)) :type (simple-array (unsigned-byte 8) (#1#))))
 
 (defbinstruct (sf2-isng (:include (sf2-chunk #.(coerce "isng" 'simple-base-string)))) ()
   (text "" :type (sf2-simple-string size)))
@@ -305,7 +305,7 @@
 (deftype sf2-info-subchunk ()
   'sf2-chunk)
 
-(defbinstruct (sf2-info-subchunk (:type sf2-info-subchunk) (:conc-name nil) (:constructor progn)) (end)
+(defbinstruct (sf2-info-subchunk (:type sf2-chunk) (:conc-name nil) (:constructor progn)) (end)
   (nil 0 :type (satisfies position (rcurry #'< end)))
   (values nil :type (or sf2-ifil sf2-isng sf2-inam sf2-irom sf2-iver
                       sf2-icrd sf2-ieng sf2-iprd sf2-icop sf2-icmt sf2-isft)))
@@ -320,7 +320,7 @@
 (deftype sf2-sdta-subchunk ()
   'sf2-chunk)
 
-(defbinstruct (sf2-sdta-subchunk (:type sf2-sdta-subchunk) (:conc-name nil) (:constructor progn)) (end)
+(defbinstruct (sf2-sdta-subchunk (:type sf2-chunk) (:conc-name nil) (:constructor progn)) (end)
   (nil 0 :type (satisfies position (rcurry #'< end)))
   (values nil :type (or sf2-smpl)))
 
@@ -334,7 +334,7 @@
 (deftype sf2-pdta-subchunk ()
   'sf2-chunk)
 
-(defbinstruct (sf2-pdta-subchunk (:type sf2-pdta-subchunk) (:conc-name nil) (:constructor progn)) (end)
+(defbinstruct (sf2-pdta-subchunk (:type sf2-chunk) (:conc-name nil) (:constructor progn)) (end)
   (nil 0 :type (satisfies position (rcurry #'< end)))
   (values nil :type (or sf2-phdr sf2-pbag sf2-pmod sf2-pgen sf2-inst
                         sf2-ibag sf2-imod sf2-igen sf2-shdr)))
