@@ -3,7 +3,7 @@
   :maintainer "Bohong Huang <bohonghuang@qq.com>"
   :license "Apache-2.0"
   :description "SoundFont 2 (SF2) reader/writer for Common Lisp."
-  :depends-on (#:binstruct)
+  :depends-on (#:binstruct #:cliff #:fast-io)
   :serial t
   :components ((:file "package"))
   :in-order-to ((test-op (test-op #:cl-sf2/test))))

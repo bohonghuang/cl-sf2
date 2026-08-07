@@ -1,25 +1,16 @@
 (defpackage cl-sf2
-  (:use #:cl #:alexandria #:binstruct)
+  (:use #:cl #:alexandria #:binstruct #:cliff)
+  (:shadow #:read #:write)
   (:nicknames #:sf2)
-  (:export #:read-sf2 #:write-sf2))
+  (:export #:read #:write))
 
 (in-package #:sf2)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Base RIFF chunk primitive ;;
+;; Enum / bitfield types  ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defbinstruct sf2-chunk (id)
-  (nil id :type (satisfies (simple-base-string 4)))
-  (size 0 :type (unsigned-byte 32)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Enum / bitfield types ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; SF2 generator enumerator (spec §8.1.2), total over 0..62.
-;; Reserved indices get placeholder symbols so the enum is total.
-(defbinenum (sf2-generator (:type (unsigned-byte 16))) ()
+(defbinenum (generator (:type (unsigned-byte 16))) ()
   (start-addrs-offset 0)
   (end-addrs-offset 1)
   (startloop-addrs-offset 2)
@@ -84,12 +75,10 @@
   (attenuation 61)
   (end-oper 62))
 
-;; SF2 transform (spec §8.3): only linear = 0 is standard.
-(defbinenum (sf2-transform (:type (unsigned-byte 16))) ()
+(defbinenum (transform (:type (unsigned-byte 16))) ()
   (linear 0))
 
-;; SF2 sample link type (spec §8.4.2).
-(defbinenum (sf2-sample-link (:type (unsigned-byte 16))) ()
+(defbinenum (sample-link (:type (unsigned-byte 16))) ()
   (no-sample-link 0)
   (mono-sample 1)
   (right-sample 2)
@@ -100,118 +89,96 @@
   (rom-left-sample #x8004)
   (rom-linked-sample #x8008))
 
-;; SF2 modulator bitfield (spec §8.2): 16 bits packed LSB-first.
-;; bits 0-6 index, 7 CC, 8 direction, 9 polarity, 10-15 type.
-(defbinstruct sf2-modulator ()
+(defbinstruct modulator ()
   (index 0 :type (unsigned-byte 7))
   (cc nil :type (boolean (unsigned-byte 1)))
   (direction 0 :type (unsigned-byte 1))
   (polarity 0 :type (unsigned-byte 1))
   (type 0 :type (unsigned-byte 6)))
 
-;; SF2 generator amount: raw two-byte form (rangesType / SHORT / WORD).
-;; Keeps round-trip exact regardless of generator kind.
-(defbinstruct sf2-gen-amount ()
+(defbinstruct gen-amount ()
   (lo 0 :type (unsigned-byte 8))
   (hi 0 :type (unsigned-byte 8)))
 
-(declaim (inline sf2-gen-amount-shamount))
-(defun sf2-gen-amount-shamount (amount)
-  "Decode the two bytes of AMOUNT as a signed 16-bit little-endian value."
-  (declare (type sf2-gen-amount amount))
-  (logior (sf2-gen-amount-lo amount)
-          (ash (let ((hi (sf2-gen-amount-hi amount)))
-                 (if (logbitp 7 hi) (- hi 256) hi)) 8)))
-
-(declaim (inline sf2-gen-amount-wamount))
-(defun sf2-gen-amount-wamount (amount)
-  "Decode the two bytes of AMOUNT as an unsigned 16-bit little-endian value."
-  (declare (type sf2-gen-amount amount))
-  (logior (sf2-gen-amount-lo amount)
-          (ash (sf2-gen-amount-hi amount) 8)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; INFO-list sub-chunks ;;
+;; Shared helpers         ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defbinstruct sf2-ifil-rec ()
+(defbinstruct ifil-rec ()
   (major 0 :type (unsigned-byte 16))
   (minor 0 :type (unsigned-byte 16)))
 
-(defbinstruct (sf2-ifil (:include (sf2-chunk #.(coerce "ifil" 'simple-base-string)))) ()
-  (version (make-sf2-ifil-rec) :type sf2-ifil-rec))
-
-(defbinstruct (sf2-iver (:include (sf2-chunk #.(coerce "iver" 'simple-base-string)))) ()
-  (version (make-sf2-ifil-rec) :type sf2-ifil-rec))
-
-(defmacro extract-values (&key values &allow-other-keys)
-  values)
-
-(defbinstruct (sf2-simple-string (:type (simple-array character (*))) (:conc-name nil) (:constructor extract-values)) (bytes)
+(defbinstruct (sized-simple-string (:type (simple-array character (*))) (:conc-name nil) (:constructor cliff::extract-values)) (bytes)
   (%start 0 :type position)
   (values #.(coerce "" 'simple-base-string) :type simple-string)
   (%end 0 :type position)
-  (nil (make-array #1=(- bytes (- %end %start)) :element-type '(unsigned-byte 8)) :type (simple-array (unsigned-byte 8) (#1#))))
-
-(defbinstruct (sf2-isng (:include (sf2-chunk #.(coerce "isng" 'simple-base-string)))) ()
-  (text "" :type (sf2-simple-string size)))
-
-(defbinstruct (sf2-inam (:include (sf2-chunk #.(coerce "INAM" 'simple-base-string)))) ()
-  (text "" :type (sf2-simple-string size)))
-
-(defbinstruct (sf2-irom (:include (sf2-chunk #.(coerce "irom" 'simple-base-string)))) ()
-  (text "" :type (sf2-simple-string size)))
-
-(defbinstruct (sf2-icrd (:include (sf2-chunk #.(coerce "ICRD" 'simple-base-string)))) ()
-  (text "" :type (sf2-simple-string size)))
-
-(defbinstruct (sf2-ieng (:include (sf2-chunk #.(coerce "IENG" 'simple-base-string)))) ()
-  (text "" :type (sf2-simple-string size)))
-
-(defbinstruct (sf2-iprd (:include (sf2-chunk #.(coerce "IPRD" 'simple-base-string)))) ()
-  (text "" :type (sf2-simple-string size)))
-
-(defbinstruct (sf2-icop (:include (sf2-chunk #.(coerce "ICOP" 'simple-base-string)))) ()
-  (text "" :type (sf2-simple-string size)))
-
-(defbinstruct (sf2-icmt (:include (sf2-chunk #.(coerce "ICMT" 'simple-base-string)))) ()
-  (text "" :type (sf2-simple-string size)))
-
-(defbinstruct (sf2-isft (:include (sf2-chunk #.(coerce "ISFT" 'simple-base-string)))) ()
-  (text "" :type (sf2-simple-string size)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; sdta-list sub-chunk ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  (nil (make-array 0 :element-type '(unsigned-byte 8)) :type (simple-array (unsigned-byte 8) ((- bytes (- %end %start))))))
 
 (defbinstruct (s16vec (:type (simple-array (signed-byte 16) (*))) (:conc-name nil) (:constructor progn)) (length)
-  (values (make-array 0 :element-type '(signed-byte 16)) :type (simple-array (signed-byte 16) (length))))
+  (values (make-array 0 :element-type '(signed-byte 16))
+          :type (simple-array (signed-byte 16) (length))))
 
 (defbinio (s16vec length) (simple-array (unsigned-byte 8) (*)))
 
-(declaim (inline u8vec-s16vec))
 (defun u8vec-s16vec (u8vec)
-  (declare (dynamic-extent u8vec))
   (read-s16vec u8vec (floor (length u8vec) 2)))
 
-(declaim (inline s16vec-u8vec))
 (defun s16vec-u8vec (s16vec)
-  (let ((u8vec (make-array (* (length s16vec) 2) :element-type '(unsigned-byte 8))))
+  (let ((u8vec (make-array (* (length s16vec) 2)
+                           :element-type '(unsigned-byte 8))))
     (write-s16vec u8vec s16vec (length s16vec))))
 
-(defbinstruct (sf2-smpl (:include (sf2-chunk #.(coerce "smpl" 'simple-base-string)))) ()
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; INFO chunks            ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-riff-chunk (ifil (:magic "ifil"))
+  (version (make-ifil-rec) :type ifil-rec))
+
+(define-riff-chunk (iver (:magic "iver"))
+  (version (make-ifil-rec) :type ifil-rec))
+
+(define-riff-chunk (isng (:magic "isng"))
+  (text "" :type (sized-simple-string (riff-chunk-size))))
+
+(define-riff-chunk (inam (:magic "INAM"))
+  (text "" :type (sized-simple-string (riff-chunk-size))))
+
+(define-riff-chunk (irom (:magic "irom"))
+  (text "" :type (sized-simple-string (riff-chunk-size))))
+
+(define-riff-chunk (icrd (:magic "ICRD"))
+  (text "" :type (sized-simple-string (riff-chunk-size))))
+
+(define-riff-chunk (ieng (:magic "IENG"))
+  (text "" :type (sized-simple-string (riff-chunk-size))))
+
+(define-riff-chunk (iprd (:magic "IPRD"))
+  (text "" :type (sized-simple-string (riff-chunk-size))))
+
+(define-riff-chunk (icop (:magic "ICOP"))
+  (text "" :type (sized-simple-string (riff-chunk-size))))
+
+(define-riff-chunk (icmt (:magic "ICMT"))
+  (text "" :type (sized-simple-string (riff-chunk-size))))
+
+(define-riff-chunk (isft (:magic "ISFT"))
+  (text "" :type (sized-simple-string (riff-chunk-size))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; sdta chunks            ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-riff-chunk (smpl (:magic "smpl"))
   (data (make-array 0 :element-type '(signed-byte 16))
-        :type (map (simple-array (unsigned-byte 8) (size))
-                   (the (function ((simple-array (unsigned-byte 8) (*)))
-                                  (simple-array (signed-byte 16) (*)))
-                        #'u8vec-s16vec)
-                   #'s16vec-u8vec)))
+        :type (map (simple-array (unsigned-byte 8) ((riff-chunk-size)))
+                   #'u8vec-s16vec #'s16vec-u8vec)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; pdta-list record structs ;;
+;; pdta record structs    ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defbinstruct sf2-phdr-rec ()
+(defbinstruct phdr-rec ()
   (name (make-array 20 :element-type 'base-char :initial-element #\Nul) :type (simple-base-string 20))
   (preset 0 :type (unsigned-byte 16))
   (bank 0 :type (unsigned-byte 16))
@@ -220,41 +187,41 @@
   (genre 0 :type (unsigned-byte 32))
   (morphology 0 :type (unsigned-byte 32)))
 
-(defbinstruct sf2-pbag-rec ()
+(defbinstruct pbag-rec ()
   (gen-ndx 0 :type (unsigned-byte 16))
   (mod-ndx 0 :type (unsigned-byte 16)))
 
-(defbinstruct sf2-pmod-rec ()
-  (src-oper (make-sf2-modulator) :type sf2-modulator)
-  (dest-oper 'start-addrs-offset :type sf2-generator)
-  (amount (make-sf2-gen-amount) :type sf2-gen-amount)
-  (amt-src-oper (make-sf2-modulator) :type sf2-modulator)
-  (trans-oper 'linear :type sf2-transform))
+(defbinstruct pmod-rec ()
+  (src-oper (make-modulator) :type modulator)
+  (dest-oper 'start-addrs-offset :type generator)
+  (amount (make-gen-amount) :type gen-amount)
+  (amt-src-oper (make-modulator) :type modulator)
+  (trans-oper 'linear :type transform))
 
-(defbinstruct sf2-pgen-rec ()
-  (gen-oper 'start-addrs-offset :type sf2-generator)
-  (amount (make-sf2-gen-amount) :type sf2-gen-amount))
+(defbinstruct pgen-rec ()
+  (gen-oper 'start-addrs-offset :type generator)
+  (amount (make-gen-amount) :type gen-amount))
 
-(defbinstruct sf2-inst-rec ()
+(defbinstruct inst-rec ()
   (name (make-array 20 :element-type 'base-char :initial-element #\Nul) :type (simple-base-string 20))
   (bag-ndx 0 :type (unsigned-byte 16)))
 
-(defbinstruct sf2-ibag-rec ()
+(defbinstruct ibag-rec ()
   (gen-ndx 0 :type (unsigned-byte 16))
   (mod-ndx 0 :type (unsigned-byte 16)))
 
-(defbinstruct sf2-imod-rec ()
-  (src-oper (make-sf2-modulator) :type sf2-modulator)
-  (dest-oper 'start-addrs-offset :type sf2-generator)
-  (amount (make-sf2-gen-amount) :type sf2-gen-amount)
-  (amt-src-oper (make-sf2-modulator) :type sf2-modulator)
-  (trans-oper 'linear :type sf2-transform))
+(defbinstruct imod-rec ()
+  (src-oper (make-modulator) :type modulator)
+  (dest-oper 'start-addrs-offset :type generator)
+  (amount (make-gen-amount) :type gen-amount)
+  (amt-src-oper (make-modulator) :type modulator)
+  (trans-oper 'linear :type transform))
 
-(defbinstruct sf2-igen-rec ()
-  (gen-oper 'start-addrs-offset :type sf2-generator)
-  (amount (make-sf2-gen-amount) :type sf2-gen-amount))
+(defbinstruct igen-rec ()
+  (gen-oper 'start-addrs-offset :type generator)
+  (amount (make-gen-amount) :type gen-amount))
 
-(defbinstruct sf2-shdr-rec ()
+(defbinstruct shdr-rec ()
   (name (make-array 20 :element-type 'base-char :initial-element #\Nul) :type (simple-base-string 20))
   (start 0 :type (unsigned-byte 32))
   (end 0 :type (unsigned-byte 32))
@@ -264,101 +231,94 @@
   (original-pitch 0 :type (unsigned-byte 8))
   (pitch-correction 0 :type (signed-byte 8))
   (sample-link 0 :type (unsigned-byte 16))
-  (sample-type 'no-sample-link :type sf2-sample-link))
+  (sample-type 'no-sample-link :type sample-link))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; pdta-list chunk structs ;;
+;; pdta chunks            ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defbinstruct (sf2-phdr (:include (sf2-chunk #.(coerce "phdr" 'simple-base-string)))) ()
-  (records (make-array 0 :element-type 'sf2-phdr-rec) :type (simple-array sf2-phdr-rec ((floor size 38)))))
+(defmacro sizeof (name)
+  (multiple-value-bind (min max)
+      (parsonic::compute-bounds/compile
+       (parsonic::expand/compile
+        (ensure-list name)))
+    (assert (= min max))
+    min))
 
-(defbinstruct (sf2-pbag (:include (sf2-chunk #.(coerce "pbag" 'simple-base-string)))) ()
-  (records (make-array 0 :element-type 'sf2-pbag-rec) :type (simple-array sf2-pbag-rec ((floor size 4)))))
+(define-riff-chunk (phdr (:magic "phdr"))
+  (records (make-array 0 :element-type 'phdr-rec)
+           :type (simple-array phdr-rec ((floor (riff-chunk-size) (sizeof phdr-rec))))))
 
-(defbinstruct (sf2-pmod (:include (sf2-chunk #.(coerce "pmod" 'simple-base-string)))) ()
-  (records (make-array 0 :element-type 'sf2-pmod-rec) :type (simple-array sf2-pmod-rec ((floor size 10)))))
+(define-riff-chunk (pbag (:magic "pbag"))
+  (records (make-array 0 :element-type 'pbag-rec)
+           :type (simple-array pbag-rec ((floor (riff-chunk-size) (sizeof pbag-rec))))))
 
-(defbinstruct (sf2-pgen (:include (sf2-chunk #.(coerce "pgen" 'simple-base-string)))) ()
-  (records (make-array 0 :element-type 'sf2-pgen-rec) :type (simple-array sf2-pgen-rec ((floor size 4)))))
+(define-riff-chunk (pmod (:magic "pmod"))
+  (records (make-array 0 :element-type 'pmod-rec)
+           :type (simple-array pmod-rec ((floor (riff-chunk-size) (sizeof pmod-rec))))))
 
-(defbinstruct (sf2-inst (:include (sf2-chunk #.(coerce "inst" 'simple-base-string)))) ()
-  (records (make-array 0 :element-type 'sf2-inst-rec) :type (simple-array sf2-inst-rec ((floor size 22)))))
+(define-riff-chunk (pgen (:magic "pgen"))
+  (records (make-array 0 :element-type 'pgen-rec)
+           :type (simple-array pgen-rec ((floor (riff-chunk-size) (sizeof pgen-rec))))))
 
-(defbinstruct (sf2-ibag (:include (sf2-chunk #.(coerce "ibag" 'simple-base-string)))) ()
-  (records (make-array 0 :element-type 'sf2-ibag-rec) :type (simple-array sf2-ibag-rec ((floor size 4)))))
+(define-riff-chunk (inst (:magic "inst"))
+  (records (make-array 0 :element-type 'inst-rec)
+           :type (simple-array inst-rec ((floor (riff-chunk-size) (sizeof inst-rec))))))
 
-(defbinstruct (sf2-imod (:include (sf2-chunk #.(coerce "imod" 'simple-base-string)))) ()
-  (records (make-array 0 :element-type 'sf2-imod-rec) :type (simple-array sf2-imod-rec ((floor size 10)))))
+(define-riff-chunk (ibag (:magic "ibag"))
+  (records (make-array 0 :element-type 'ibag-rec)
+           :type (simple-array ibag-rec ((floor (riff-chunk-size) (sizeof ibag-rec))))))
 
-(defbinstruct (sf2-igen (:include (sf2-chunk #.(coerce "igen" 'simple-base-string)))) ()
-  (records (make-array 0 :element-type 'sf2-igen-rec) :type (simple-array sf2-igen-rec ((floor size 4)))))
+(define-riff-chunk (imod (:magic "imod"))
+  (records (make-array 0 :element-type 'imod-rec)
+           :type (simple-array imod-rec ((floor (riff-chunk-size) (sizeof imod-rec))))))
 
-(defbinstruct (sf2-shdr (:include (sf2-chunk #.(coerce "shdr" 'simple-base-string)))) ()
-  (records (make-array 0 :element-type 'sf2-shdr-rec) :type (simple-array sf2-shdr-rec ((floor size 46)))))
+(define-riff-chunk (igen (:magic "igen"))
+  (records (make-array 0 :element-type 'igen-rec)
+           :type (simple-array igen-rec ((floor (riff-chunk-size) (sizeof igen-rec))))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; LIST containers and top-level RIFF ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; INFO-list: sentinel-terminated sub-chunk array with (or ...) dispatch on 4-byte id.
-(deftype sf2-info-subchunk ()
-  'sf2-chunk)
-
-(defbinstruct (sf2-info-subchunk (:type sf2-chunk) (:conc-name nil) (:constructor progn)) (end)
-  (nil 0 :type (satisfies position (rcurry #'< end)))
-  (values nil :type (or sf2-ifil sf2-isng sf2-inam sf2-irom sf2-iver
-                      sf2-icrd sf2-ieng sf2-iprd sf2-icop sf2-icmt sf2-isft)))
-
-(defbinstruct (sf2-info-list (:include (sf2-chunk #.(coerce "LIST" 'simple-base-string)))) ()
-  (form #.(coerce "INFO" 'simple-base-string) :type (satisfies (simple-base-string 4)))
-  (end 0 :type (map position (curry #'+ (- size 4))))
-  (chunks (make-array 0 :element-type 'sf2-info-subchunk)
-          :type (simple-array (sf2-info-subchunk end) (*))))
-
-;; sdta-list: single smpl member.
-(deftype sf2-sdta-subchunk ()
-  'sf2-chunk)
-
-(defbinstruct (sf2-sdta-subchunk (:type sf2-chunk) (:conc-name nil) (:constructor progn)) (end)
-  (nil 0 :type (satisfies position (rcurry #'< end)))
-  (values nil :type (or sf2-smpl)))
-
-(defbinstruct (sf2-sdta-list (:include (sf2-chunk #.(coerce "LIST" 'simple-base-string)))) ()
-  (form #.(coerce "sdta" 'simple-base-string) :type (satisfies (simple-base-string 4)))
-  (end 0 :type (map position (curry #'+ (- size 4))))
-  (chunks (make-array 0 :element-type 'sf2-sdta-subchunk)
-          :type (simple-array (sf2-sdta-subchunk end) (*))))
-
-;; pdta-list: nine hydra chunk members.
-(deftype sf2-pdta-subchunk ()
-  'sf2-chunk)
-
-(defbinstruct (sf2-pdta-subchunk (:type sf2-chunk) (:conc-name nil) (:constructor progn)) (end)
-  (nil 0 :type (satisfies position (rcurry #'< end)))
-  (values nil :type (or sf2-phdr sf2-pbag sf2-pmod sf2-pgen sf2-inst
-                        sf2-ibag sf2-imod sf2-igen sf2-shdr)))
-
-(defbinstruct (sf2-pdta-list (:include (sf2-chunk #.(coerce "LIST" 'simple-base-string)))) ()
-  (form #.(coerce "pdta" 'simple-base-string) :type (satisfies (simple-base-string 4)))
-  (end 0 :type (map position (curry #'+ (- size 4))))
-  (chunks (make-array 0 :element-type 'sf2-pdta-subchunk) :type (simple-array (sf2-pdta-subchunk end) (*))))
-
-;; Top-level RIFF.
-(defbinstruct (sf2-riff (:include (sf2-chunk #.(coerce "RIFF" 'simple-base-string)))) ()
-  (form #.(coerce "sfbk" 'simple-base-string) :type (satisfies (simple-base-string 4)))
-  (info (make-sf2-info-list) :type sf2-info-list)
-  (sdta (make-sf2-sdta-list) :type sf2-sdta-list)
-  (pdta (make-sf2-pdta-list) :type sf2-pdta-list))
+(define-riff-chunk (shdr (:magic "shdr"))
+  (records (make-array 0 :element-type 'shdr-rec)
+           :type (simple-array shdr-rec ((floor (riff-chunk-size) (sizeof shdr-rec))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; defbinio and entry points ;;
+;; LIST containers        ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defbinio (sf2-riff) stream)
+(define-riff-list (info-list (:magic "INFO"))
+  ifil isng inam irom iver
+  icrd ieng iprd icop icmt isft)
 
-(defun read-sf2 (stream)
-  (read-sf2-riff stream))
+(define-riff-list (sdta-list (:magic "sdta"))
+  smpl)
 
-(defun write-sf2 (stream sf2)
-  (write-sf2-riff stream sf2))
+(define-riff-list (pdta-list (:magic "pdta"))
+  phdr pbag pmod pgen inst
+  ibag imod igen shdr)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Top-level RIFF         ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-riff-file (sfbk (:magic "sfbk"))
+  info-list sdta-list pdta-list)
+
+(defgeneric read (input)
+  (:method ((stream stream))
+    (read-sfbk-file stream))
+  (:method ((vector vector))
+    (read (make-instance 'fast-io:fast-input-stream :vector vector)))
+  (:method ((pathname pathname))
+    (with-open-file (stream pathname :direction :input :element-type '(unsigned-byte 8))
+      (read stream))))
+
+(defgeneric write (output object)
+  (:method ((object sfbk) (stream stream))
+    (write-sfbk-file stream object))
+  (:method ((object sfbk) (null null))
+    (let ((stream (make-instance 'fast-io:fast-output-stream)))
+      (write object stream)
+      (fast-io:finish-output-stream stream)))
+  (:method ((object sfbk) (pathname pathname))
+    (with-open-file (stream pathname :direction :output :element-type '(unsigned-byte 8))
+      (write object stream))))
