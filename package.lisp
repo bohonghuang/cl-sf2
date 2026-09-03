@@ -132,44 +132,44 @@
 ;; INFO chunks            ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-riff-chunk (ifil (:magic "ifil"))
+(define-riff-chunk (ifil (:fourcc "ifil"))
   (version (make-ifil-rec) :type ifil-rec))
 
-(define-riff-chunk (iver (:magic "iver"))
+(define-riff-chunk (iver (:fourcc "iver"))
   (version (make-ifil-rec) :type ifil-rec))
 
-(define-riff-chunk (isng (:magic "isng"))
+(define-riff-chunk (isng (:fourcc "isng"))
   (text "" :type (sized-simple-string (riff-chunk-size))))
 
-(define-riff-chunk (inam (:magic "INAM"))
+(define-riff-chunk (inam (:fourcc "INAM"))
   (text "" :type (sized-simple-string (riff-chunk-size))))
 
-(define-riff-chunk (irom (:magic "irom"))
+(define-riff-chunk (irom (:fourcc "irom"))
   (text "" :type (sized-simple-string (riff-chunk-size))))
 
-(define-riff-chunk (icrd (:magic "ICRD"))
+(define-riff-chunk (icrd (:fourcc "ICRD"))
   (text "" :type (sized-simple-string (riff-chunk-size))))
 
-(define-riff-chunk (ieng (:magic "IENG"))
+(define-riff-chunk (ieng (:fourcc "IENG"))
   (text "" :type (sized-simple-string (riff-chunk-size))))
 
-(define-riff-chunk (iprd (:magic "IPRD"))
+(define-riff-chunk (iprd (:fourcc "IPRD"))
   (text "" :type (sized-simple-string (riff-chunk-size))))
 
-(define-riff-chunk (icop (:magic "ICOP"))
+(define-riff-chunk (icop (:fourcc "ICOP"))
   (text "" :type (sized-simple-string (riff-chunk-size))))
 
-(define-riff-chunk (icmt (:magic "ICMT"))
+(define-riff-chunk (icmt (:fourcc "ICMT"))
   (text "" :type (sized-simple-string (riff-chunk-size))))
 
-(define-riff-chunk (isft (:magic "ISFT"))
+(define-riff-chunk (isft (:fourcc "ISFT"))
   (text "" :type (sized-simple-string (riff-chunk-size))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; sdta chunks            ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-riff-chunk (smpl (:magic "smpl"))
+(define-riff-chunk (smpl (:fourcc "smpl"))
   (data (make-array 0 :element-type '(signed-byte 16))
         :type (map (simple-array (unsigned-byte 8) ((riff-chunk-size)))
                    #'u8vec-s16vec #'s16vec-u8vec)))
@@ -245,39 +245,39 @@
     (assert (= min max))
     min))
 
-(define-riff-chunk (phdr (:magic "phdr"))
+(define-riff-chunk (phdr (:fourcc "phdr"))
   (records (make-array 0 :element-type 'phdr-rec)
            :type (simple-array phdr-rec ((floor (riff-chunk-size) (sizeof phdr-rec))))))
 
-(define-riff-chunk (pbag (:magic "pbag"))
+(define-riff-chunk (pbag (:fourcc "pbag"))
   (records (make-array 0 :element-type 'pbag-rec)
            :type (simple-array pbag-rec ((floor (riff-chunk-size) (sizeof pbag-rec))))))
 
-(define-riff-chunk (pmod (:magic "pmod"))
+(define-riff-chunk (pmod (:fourcc "pmod"))
   (records (make-array 0 :element-type 'pmod-rec)
            :type (simple-array pmod-rec ((floor (riff-chunk-size) (sizeof pmod-rec))))))
 
-(define-riff-chunk (pgen (:magic "pgen"))
+(define-riff-chunk (pgen (:fourcc "pgen"))
   (records (make-array 0 :element-type 'pgen-rec)
            :type (simple-array pgen-rec ((floor (riff-chunk-size) (sizeof pgen-rec))))))
 
-(define-riff-chunk (inst (:magic "inst"))
+(define-riff-chunk (inst (:fourcc "inst"))
   (records (make-array 0 :element-type 'inst-rec)
            :type (simple-array inst-rec ((floor (riff-chunk-size) (sizeof inst-rec))))))
 
-(define-riff-chunk (ibag (:magic "ibag"))
+(define-riff-chunk (ibag (:fourcc "ibag"))
   (records (make-array 0 :element-type 'ibag-rec)
            :type (simple-array ibag-rec ((floor (riff-chunk-size) (sizeof ibag-rec))))))
 
-(define-riff-chunk (imod (:magic "imod"))
+(define-riff-chunk (imod (:fourcc "imod"))
   (records (make-array 0 :element-type 'imod-rec)
            :type (simple-array imod-rec ((floor (riff-chunk-size) (sizeof imod-rec))))))
 
-(define-riff-chunk (igen (:magic "igen"))
+(define-riff-chunk (igen (:fourcc "igen"))
   (records (make-array 0 :element-type 'igen-rec)
            :type (simple-array igen-rec ((floor (riff-chunk-size) (sizeof igen-rec))))))
 
-(define-riff-chunk (shdr (:magic "shdr"))
+(define-riff-chunk (shdr (:fourcc "shdr"))
   (records (make-array 0 :element-type 'shdr-rec)
            :type (simple-array shdr-rec ((floor (riff-chunk-size) (sizeof shdr-rec))))))
 
@@ -285,14 +285,14 @@
 ;; LIST containers        ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-riff-list (info-list (:magic "INFO"))
+(define-riff-list (info-list (:fourcc "INFO"))
   ifil isng inam irom iver
   icrd ieng iprd icop icmt isft)
 
-(define-riff-list (sdta-list (:magic "sdta"))
+(define-riff-list (sdta-list (:fourcc "sdta"))
   smpl)
 
-(define-riff-list (pdta-list (:magic "pdta"))
+(define-riff-list (pdta-list (:fourcc "pdta"))
   phdr pbag pmod pgen inst
   ibag imod igen shdr)
 
@@ -300,7 +300,7 @@
 ;; Top-level RIFF         ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-riff-file (sfbk (:magic "sfbk"))
+(define-riff-file (sfbk (:fourcc "sfbk"))
   info-list sdta-list pdta-list)
 
 (defgeneric read (input)
